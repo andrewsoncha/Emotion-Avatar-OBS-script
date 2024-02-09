@@ -1,4 +1,4 @@
-import cv2
+'''import cv2
 import multiprocessing
 from emotionDetector import emotionDetector
 
@@ -14,7 +14,7 @@ class avatar:
         self.lastFrame = None
         self.fps = 10
         self.continueLoop = True
-        self.lastEmotionIndex = -1
+        self.emotionIndex = -1
         self.emotionDetectorObj = emotionDetector()
 
     def openCam(self, camIdx):
@@ -33,11 +33,27 @@ class avatar:
     def mainLoop(self):
         while self.continueLoop:
             self.getNewFrame()
-            emotionIdx = self.emotionDetectorObj.detect(self.lastFrame)
-            if emotionIdx!=self.lastEmotionIndex:
-                self.lastEmotionIndex = emotionIndex
-                self.obsFunc(emotionIndex)
+            self.emotionIdx = self.emotionDetectorObj.detect(self.lastFrame)
 
     def endLoop(self):
         self.continueLoop = False
-        self.closeCam()
+        self.closeCam()'''
+
+import cv2
+from emotionDetector import EmotionDetector
+
+class Avatar:
+    def __init__(self, camIdx, scriptPath):
+        print('avatar init!')
+        self.emotionDetectorObj = EmotionDetector(scriptPath)
+        self.cam = cv2.VideoCapture(camIdx)
+    def oneLoop(self):
+        ret, frame = self.cam.read()
+        if ret:
+            return self.emotionDetectorObj.detectEmotion(frame)
+        else:
+            return 4
+        #When no image is read from cam, Neutral expression is returned
+    def endSetup(self):
+        cv2.destroyAllWindows()
+        self.cam.release()

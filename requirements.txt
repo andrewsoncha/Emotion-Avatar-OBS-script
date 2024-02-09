@@ -3,3 +3,4 @@ numpy
 keras
 argparse
 pygrabber
+tensorflow
