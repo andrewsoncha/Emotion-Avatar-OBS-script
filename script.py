@@ -6,14 +6,14 @@ avatarImgPath = []
 neutralIdx = 4
 setting_obj = None
 milWait = 1000
+lastIndex = 4
+drawWindow = False
 
-# TODO: CHANGE IT FROM RUNNING ALL IN THE BUTTON PRESSED CALLBACK FUNCTION TO A THREAD OR A TIMER OR A TICK BASED APPROACH
-# USE timer_add or script_tick
+avatar_source_name = 'avatar_image'
 
 class ScriptClass:
     def __init__(self, prop):
         global avatarImgPath
-        self.lastEmotionIdx = neutralIdx
         print('avatarImgPath:',avatarImgPath)
 
     def create_source(self):
@@ -29,27 +29,38 @@ class ScriptClass:
             settings, "file", avatarImgPath[neutralIdx]
         )
         
-        source = S.obs_source_create_private("image_source", "avatar_image", settings)
+        source = S.obs_source_create_private("image_source", avatar_source_name, settings)
         S.obs_scene_add(scene, source)
 
         S.obs_scene_release(scene)
         S.obs_data_release(settings)
         S.obs_source_release(source)
 
+    def remove_source(self):
+        current_scene_as_source = S.obs_frontend_get_current_scene()
+        if current_scene_as_source:
+            current_scene = S.obs_scene_from_source(current_scene_as_source)
+            scene_item = S.obs_scene_find_source_recursive(current_scene, avatar_source_name)
+            if scene_item:
+                print('scene_item:',scene_item)
+                S.obs_sceneitem_remove(scene_item)
+        S.obs_source_release(current_scene_as_source)
+
     def change_img_source(self, emotionIdx):
         global avatarImgPath
-        if self.lastEmotionIdx!=emotionIdx:
+        global lastIndex
+        if lastIndex!=emotionIdx:
             current_scene_as_source = S.obs_frontend_get_current_scene()
             if current_scene_as_source:
                 current_scene = S.obs_scene_from_source(current_scene_as_source)
-                scene_item = S.obs_scene_find_source_recursive(current_scene, "avatar_image")
+                scene_item = S.obs_scene_find_source_recursive(current_scene, avatar_source_name)
                 if scene_item:
                     settings = S.obs_data_create()
                     S.obs_data_set_string(settings, "file", avatarImgPath[emotionIdx])
                     S.obs_source_update(S.obs_sceneitem_get_source(scene_item), settings)
                     S.obs_data_release(settings)
                 S.obs_source_release(current_scene_as_source)
-            self.lastEmotionIdx = emotionIdx
+            lastIndex = emotionIdx
 
 def getAllImgPaths(settings):
     global avatarImgPath
@@ -71,6 +82,10 @@ def setMilWait(settings):
     milWait = int(1000/fps)
     print('milWait:',milWait)
 
+def setDrawWindow(settings):
+    global drawWindow
+    drawWindow = S.obs_data_get_bool(settings, 'draw_frame')
+
 
 script_obj = None
 avatar_obj = None
@@ -82,10 +97,9 @@ class LoopClass:
         global avatar_obj
         global script_obj
         global keepGoing
-        print('callback called!')
         if keepGoing:
             print('keepGoing:',keepGoing)
-            emotionIdx = avatar_obj.oneLoop()
+            emotionIdx = avatar_obj.oneLoop(lastIndex)
             print('emotionIdx:',emotionIdx)
             script_obj.change_img_source(emotionIdx)
         else:
@@ -96,14 +110,10 @@ loopObj = LoopClass()
 def add_pressed(props, prop, *args):
     global avatar_obj
     global script_obj
+    global drawWindow
     S.obs_properties_apply_settings(props, setting_obj)
-    print('args:',args)
-    print('props:',props)
-    print('____________________________')
-    print('prop:',prop)
-    print('settings:',setting_obj)
     script_obj = ScriptClass(props)
-    avatar_obj = Avatar(0, script_path())
+    avatar_obj = Avatar(0, script_path(), drawWindow)
     script_obj.create_source()
     keepGoing = True
     # loopObj.oneLoop()
@@ -112,10 +122,13 @@ def add_pressed(props, prop, *args):
 def remove_pressed(props, prop):
     global keepGoing
     global avatar_obj
+    global script_obj
+    print('remove pressed')
     keepGoing = False
     S.timer_remove(loopObj.oneLoop)
     if avatar_obj is not None:
         avatar_obj.endSetup()
+    script_obj.remove_source()
     
 
 def script_description():
@@ -126,19 +139,23 @@ def script_load(settings):
     print('angry_path:',S.obs_data_get_string(settings, 'angry_path'))
     getAllImgPaths(settings)
     setMilWait(settings)
+    setDrawWindow(settings)
 
 def script_unload():
     global avatar_obj
+    global script_obj
     keepGoing = False
     if avatar_obj is not None:
         avatar_obj.endSetup()
     S.timer_remove(oneLoop)
+    script_obj.remove_pressed()
 
 def script_update(settings):
     print('script updated')
     print('sad_path:',S.obs_data_get_string(settings, 'sad_path'))
     getAllImgPaths(settings)
     setMilWait(settings)
+    setDrawWindow(settings)
 
 def script_properties():  # ui
     props = S.obs_properties_create()
@@ -155,4 +172,6 @@ def script_properties():  # ui
     S.obs_properties_add_path(props, "sad_path", "Avatar Sad Image Path", S.OBS_PATH_FILE, None,'')
     S.obs_properties_add_path(props, "surprised_path", "Avatar Surprised Image Path", S.OBS_PATH_FILE, None,'')
     S.obs_properties_apply_settings(props, setting_obj)
+
+    S.obs_properties_add_bool(props, 'draw_frame', "Click to Draw Camera Feed on a separate window")
     return props

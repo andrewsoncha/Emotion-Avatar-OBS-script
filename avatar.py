@@ -43,17 +43,21 @@ import cv2
 from emotionDetector import EmotionDetector
 
 class Avatar:
-    def __init__(self, camIdx, scriptPath):
+    def __init__(self, camIdx, scriptPath, drawWindow):
         print('avatar init!')
         self.emotionDetectorObj = EmotionDetector(scriptPath)
         self.cam = cv2.VideoCapture(camIdx)
-    def oneLoop(self):
+        self.drawWindow = drawWindow
+    def oneLoop(self, lastIndex):
         ret, frame = self.cam.read()
         if ret:
-            return self.emotionDetectorObj.detectEmotion(frame)
+            print('oneLoop image read!')
+            return self.emotionDetectorObj.detectEmotion(frame, self.drawWindow)
         else:
-            return 4
+            print('oneLoop image not read!')
+            return lastIndex
         #When no image is read from cam, Neutral expression is returned
     def endSetup(self):
-        cv2.destroyAllWindows()
         self.cam.release()
+        cv2.waitKey(1)
+        cv2.destroyAllWindows()
