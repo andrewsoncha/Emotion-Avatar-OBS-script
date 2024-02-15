@@ -1,6 +1,7 @@
 import obspython as S
 from avatar import Avatar
 from multiprocessing import Process
+from pygrabber.dshow_graph import FilterGraph
 
 avatarImgPath = []
 neutralIdx = 4
@@ -8,8 +9,17 @@ setting_obj = None
 milWait = 1000
 lastIndex = 4
 drawWindow = False
+camIdx = 0
+camera_names = {}
 
 avatar_source_name = 'avatar_image'
+
+def get_available_cameras() :
+    devices = FilterGraph().get_input_devices()
+    available_cameras = {}
+    for device_index, device_name in enumerate(devices):
+        available_cameras[device_index] = device_name
+    return available_cameras
 
 class ScriptClass:
     def __init__(self, prop):
@@ -86,6 +96,27 @@ def setDrawWindow(settings):
     global drawWindow
     drawWindow = S.obs_data_get_bool(settings, 'draw_frame')
 
+def setCamIdxList(props):
+    global camera_names
+    camera_names = get_available_cameras()
+    print('camer_names:',camera_names)
+    for name in camera_names:
+        print('name:',name)
+        S.obs_property_list_add_string(props, camera_names[name], str(name))
+
+def getCamIdx(settings):
+    global camIdx
+    global camera_names
+    idx=0
+    name = S.obs_data_get_string(settings, "cam_list")
+    for i in camera_names:
+        idx+=1
+        if i==name:
+            camIdx = idx
+            break
+    return camIdx
+    
+
 
 script_obj = None
 avatar_obj = None
@@ -111,9 +142,10 @@ def add_pressed(props, prop, *args):
     global avatar_obj
     global script_obj
     global drawWindow
+    global camIdx
     S.obs_properties_apply_settings(props, setting_obj)
     script_obj = ScriptClass(props)
-    avatar_obj = Avatar(0, script_path(), drawWindow)
+    avatar_obj = Avatar(camIdx, script_path(), drawWindow)
     script_obj.create_source()
     keepGoing = True
     # loopObj.oneLoop()
@@ -140,6 +172,7 @@ def script_load(settings):
     getAllImgPaths(settings)
     setMilWait(settings)
     setDrawWindow(settings)
+    getCamIdx(settings)
 
 def script_unload():
     global avatar_obj
@@ -156,9 +189,13 @@ def script_update(settings):
     getAllImgPaths(settings)
     setMilWait(settings)
     setDrawWindow(settings)
+    getCamIdx(settings)
 
 def script_properties():  # ui
     props = S.obs_properties_create()
+    camListProp = S.obs_properties_add_list(props, "cam_list", "Camera Feed", S.OBS_COMBO_TYPE_LIST, S.OBS_COMBO_FORMAT_STRING)
+    setCamIdxList(camListProp)
+
     b1 = S.obs_properties_add_button(props, "button", "Add Avatar source", add_pressed)
     S.obs_property_set_modified_callback(b1, add_pressed)
     S.obs_properties_add_button(props, "button2", "Remove Avatar Source", remove_pressed)
