@@ -1,5 +1,5 @@
 # Emotion-Avatar-OBS-script
- OBS Plugin that detects Facial Expressions from webcam and displays different images based on emotion.
+ OBS-Python script that detects Facial Expressions from webcam and displays different images based on emotion.
 
 # Demonstration Video
 https://youtu.be/MXATCd9sN_Q
